@@ -1,41 +1,81 @@
-﻿using BaseLib.Dtos.User;
-using BaseLib.Models;
+﻿using BaseLib.Controllers;
+using BaseLib.Dtos;
+using BaseLib.Dtos.User;
 using DataService.Services;
 using Microsoft.AspNetCore.Mvc;
-using static BaseLib.Enums.UserEnum;
+using Newtonsoft.Json;
 
 namespace DataService.Controllers;
 
 [ApiController]
 [Route("api/v1/[controller]/[action]")]
-public class UserController : ControllerBase
+public class UserController : ApiBaseController
 {
     public UserController(){ }
 
     [HttpPost]
-    public async Task<ActionResult<LOGIN_STATE>> PCheckUsername(
+    public async Task<IActionResult> PCheckUsername(
         [FromBody] UserLoginDto userLogin
     )
     {
-        LOGIN_STATE loginStatus = UserService.CheckUsername(userLogin);
-        return await Task.FromResult(Ok(loginStatus));
+        try
+        {
+            ERequest responseResult = await UserService.CheckUsername(userLogin);
+
+            return Content(JsonConvert.SerializeObject(responseResult));
+        }
+        catch (Exception ex)
+        {
+            return CreateJsonResponse(new ERequest()
+            {
+                Code = (long)ERequest.CODE.ERROR,
+                Message = ex.Message,
+                Data = null
+            });
+        }
     }
 
     [HttpPost]
-    public ActionResult<UserModel> PCheckLogin(
+    public async Task<IActionResult> PCheckLogin(
         [FromBody] UserLoginDto userLogin
     )
     {
-        UserModel? user = UserService.CheckLogin(userLogin);
-        return Ok(user);
+        try
+        {
+            ERequest responseResult = await UserService.CheckLogin(userLogin);
+
+            return Content(JsonConvert.SerializeObject(responseResult));
+        }
+        catch (Exception ex)
+        {
+            return CreateJsonResponse(new ERequest()
+            {
+                Code = (long)ERequest.CODE.ERROR,
+                Message = ex.Message,
+                Data = null
+            });
+        }
     }
 
     [HttpPost]
-    public ActionResult<UserModel> PRegister(
+    public async Task<IActionResult> PRegister(
         [FromBody] UserRegisterDto userRegister
     )
     {
-        UserModel? user = UserService.Register(userRegister);
-        return Ok(user);
+        try
+        {
+            ERequest responseResult = await UserService.Register(userRegister);
+
+            return Content(JsonConvert.SerializeObject(responseResult));
+        }
+        catch (Exception ex)
+        {
+            return CreateJsonResponse(new ERequest()
+            {
+                Code = (long)ERequest.CODE.ERROR,
+                Message = ex.Message,
+                Data = null
+            });
+        }
     }
 }

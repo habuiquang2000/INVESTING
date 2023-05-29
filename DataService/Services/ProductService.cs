@@ -4,18 +4,28 @@ using DataService.Utils;
 using BaseLib.Dtos.Product;
 using BaseLib.Models;
 using System.Data;
+using BaseLib.Dtos;
 
-namespace DataService.Services
+namespace DataService.Services;
+
+public class ProductService
 {
-    public class ProductService : BaseService
+    static readonly Dictionary<string, string> productMapper = new()
     {
-        #region C
-        public static Task<ProductModel> CreateOne(PrductCreateDto product)
+        ["Id"] = "_id",
+        ["Name"] = "name",
+        ["Price"] = "price",
+        ["Description"] = "description",
+    };
+    #region C
+    public static async Task<ERequest> CreateOne(PrductCreateDto product)
+    {
+        try
         {
             //if (string.IsNullOrEmpty(customerModel.fullname)) throw new Exception("Tên khách mời không được bỏ trống!");
 
             //int id = int.Parse(customerDAO.InsertOne(customerModel));
-            DataTable dt = ProductQuery.InsertOne(new ProductModel()
+            DataTable dt = await ProductQuery.InsertOneAsync(new ProductModel()
             {
                 Id = Uuid.GenerateWithDateTime,
                 Name = product.Name,
@@ -26,39 +36,45 @@ namespace DataService.Services
             List<ProductModel> newProducts = new();
             foreach (DataRow row in dt.Rows)
             {
-                ProductModel newProduct = new()
-                {
-                    Id = $"{row["_id"]}",
-                    Name = $"{row["name"]}",
-                    Price = double.Parse($"{row["price"]}"),
-                    Description = $"{row["description"]}",
-                };
+                ProductModel newProduct = row.ToModel<ProductModel>(productMapper);
                 newProducts.Add(newProduct);
                 ProductCache.ProductList.Add(newProduct);
             }
 
-            return Task.FromResult<ProductModel>(newProducts.First());
-        }
-        #endregion
-
-        #region R
-        public static List<ProductModel> ReadMany(string search = "")
-        {
-            if(ProductCache.ProductList == null || ProductCache.ProductList.Count == 0)
+            return new ERequest()
             {
-                DataTable table = ProductQuery.GetAll("");
-                List<ProductModel> newList = new();
-                newList.AddRange(
-                    collection: from DataRow row in table.Rows
-                                let item = new ProductModel()
-                                {
-                                    Id = $"{row["_id"]}",
-                                    Name = $"{row["name"]}",
-                                    Price = double.Parse($"{row["price"]}"),
-                                    Description = $"{row["description"]}",
-                                }
-                                select item);
-                ProductCache.ProductList = newList;
+                Code = (long)ERequest.CODE.SUCCESS,
+                Message = ERequest.CODE.SUCCESS.ToString(),
+                Data = newProducts.First()
+            };
+        }
+        catch (Exception ex)
+        {
+            return new ERequest()
+            {
+                Code = ((long)ERequest.CODE.ERROR),
+                Message = ex.Message,
+                Data = ERequest.RESPONSE_DATA_NULL
+            };
+        }
+    }
+    #endregion
+
+    #region R
+    public static async Task<ERequest> ReadMany(string search = "")
+    {
+        try
+        {
+            if (ProductCache.ProductList == null || ProductCache.ProductList.Count == 0)
+            {
+                List<ProductModel>? newList = (await ProductQuery
+                    .GetAllAsync(""))
+                    .ToList<ProductModel>(productMapper);
+                //newList.AddRange(
+                //    collection: from DataRow row in table.Rows
+                //                let item = row.ToModel
+                //                select item);
+                ProductCache.ProductList = newList!;
             }
 
             List<ProductModel> productList = ProductCache
@@ -69,14 +85,28 @@ namespace DataService.Services
                 )
                 .ToList();
 
-            return productList;
+            return new ERequest()
+            {
+                Code = (long)ERequest.CODE.SUCCESS,
+                Message = ERequest.CODE.SUCCESS.ToString(),
+                Data = productList
+            };
         }
-        #endregion
-
-        #region U
-        #endregion
-
-        #region D
-        #endregion
+        catch (Exception ex)
+        {
+            return new ERequest()
+            {
+                Code = ((long)ERequest.CODE.ERROR),
+                Message = ex.Message,
+                Data = ERequest.RESPONSE_DATA_NULL
+            };
+        }
     }
+    #endregion
+
+    #region U
+    #endregion
+
+    #region D
+    #endregion
 }

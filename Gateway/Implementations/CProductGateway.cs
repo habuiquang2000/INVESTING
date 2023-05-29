@@ -1,71 +1,71 @@
 ﻿using BaseLib.Dtos;
 using BaseLib.Dtos.Product;
-using BaseLib.Models;
+using BaseLib.Https;
 using Gateway.BLL;
 using Gateway.Interfaces;
 
 namespace Gateway.Implementations;
 
-public class CGatewayHandler : IGatewayHandler
+public class CProductGateway : IProductHandler
 {
     private readonly IConfiguration _configuration;
     private readonly BaseHttpClient _baseHttpClient;
-    public CGatewayHandler(IConfiguration configuration)
+    public CProductGateway(IConfiguration configuration)
     {
         _configuration = configuration;
         _baseHttpClient = new(_configuration.GetSection(CConfigAG.HOST_PRODUCT).Value);
     }
 
-    public EResponseResult Api_GetListProduct(Dictionary<string, string?> query)
+    public async Task<EResponse> Api_GetListProductAsync(Dictionary<string, string?> query)
     {
         try
         {
-            List<ProductModel>? productList = _baseHttpClient.Get<List<ProductModel>>(
+            ERequest? request = await _baseHttpClient
+                .GetAsync<ERequest>(
                 _configuration.GetSection(CConfigAG.ENDPOINT_PRODUCT_LIST).Value,
                 query
             );
 
-            return new EResponseResult()
+            return new EResponse()
             {
-                Code = 0,
-                Message = "SUCCESS",
-                Data = productList
+                Code = (long)EResponse.RESPONSE_CODE.SUCCESS,
+                Message = EResponse.RESPONSE_CODE.SUCCESS.ToString(),
+                Data = request!.Data,
             };
         }
         catch (Exception ex)
         {
-            return new EResponseResult()
+            return new EResponse()
             {
                 Code = ((long)CConfigAG.CODE_ERROR.IMPLEMEN),
                 Message = ex.Message,
-                Data = null
+                Data = EResponse.RESPONSE_DATA_NULL
             };
         }
     }
-    public EResponseResult Api_CreateOneProduct(PrductCreateDto TPM)
+    public async Task<EResponse> Api_CreateOneProductAsync(PrductCreateDto TPM)
     {
         try
         {
-            ProductModel? productNew = _baseHttpClient.Post<ProductModel>(
+            ERequest? request = await _baseHttpClient.PostAsync<ERequest>(
                 _configuration.GetSection(CConfigAG.ENDPOINT_PRODUCT_CREATE).Value,
                 TPM
             );
 
-            return new EResponseResult()
+            return new EResponse()
             {
-                Code = 0,
-                Message = "SUCCESS",
-                Data = productNew
+                Code = (long)EResponse.RESPONSE_CODE.SUCCESS,
+                Message = EResponse.RESPONSE_CODE.SUCCESS.ToString(),
+                Data = request!.Data
             };
         }
         catch (Exception ex)
         {
-            // return
-            return new EResponseResult()
+            return new EResponse()
             {
                 Code = (long)CConfigAG.CODE_ERROR.IMPLEMEN,
                 Message = ex.Message,
-                Data = null
+                Data = EResponse.RESPONSE_DATA_NULL
             };
         }
     }

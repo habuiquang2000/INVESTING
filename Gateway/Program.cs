@@ -1,4 +1,5 @@
-﻿using Gateway.Implementations;
+﻿using Gateway.BLL;
+using Gateway.Implementations;
 using Gateway.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -38,11 +39,22 @@ builder.Services.AddControllers();
 //    }
 //  });
 //});
-builder.Services.AddTransient<IGatewayHandler, CGatewayHandler>();
+
+//Life cycle Dependency Injection (DI): AddSingleton, AddTransient, AddScoped
+builder.Services.AddTransient<IProductHandler, CProductGateway>();
+builder.Services.AddTransient<IUserHandler, CUserGateway>();
+//builder.Services.AddScoped<IUserBaseAuthen, CUserBaseAuthen>();
 
 builder.Services.AddCors(
-    options => options.AddDefaultPolicy(
-        policy => policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+    options => options
+    .AddDefaultPolicy(
+        policy => policy
+        .AllowAnyOrigin()
+        .AllowAnyHeader()
+        .AllowAnyMethod()));
+
+//builder.Services.AddAuthentication("BasicAuthentication")
+//    .AddScheme<AuthenticationSchemeOptions, BaseAuthentication>("BasicAuthentication", null);
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -51,13 +63,30 @@ builder.Services.AddAuthentication(options =>
 })
     .AddJwtBearer(options =>
     {
-        options.SaveToken = true;
         options.RequireHttpsMetadata = false;
+        options.SaveToken = true;
         options.Events = new JwtBearerEvents
         {
             OnAuthenticationFailed = async (context) =>
             {
-                Console.WriteLine("Printing in the delegate OnAuthFailed");
+                // Expired token
+                await Task.FromResult<object>(new { });
+            },
+            OnForbidden = async (context) =>
+            {
+                // Non token
+                context.Response.StatusCode = 401;
+                await context.Response.WriteAsJsonAsync(new
+                {
+                    Messagee = "Bạn cần đăng nhập"
+                });
+            },
+            OnMessageReceived = async (context) =>
+            {
+                await Task.FromResult<object>(new { });
+            },
+            OnTokenValidated = async (context) =>
+            {
                 await Task.FromResult<object>(new { });
             },
             OnChallenge = async (context) =>
@@ -84,15 +113,18 @@ builder.Services.AddAuthentication(options =>
         };
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateLifetime = true,
             ValidateIssuer = true,
             ValidateAudience = true,
-            ValidAudience = builder.Configuration["JWT:ValidAudience"],
-            ValidIssuer = builder.Configuration["JWT:ValidIssuer"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:Secret"]))
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidAudience = builder.Configuration[CConfigAG.JWT_VALID_AUDIENCE],
+            ValidIssuer = builder.Configuration[CConfigAG.JWT_VALID_ISSUER],
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(
+                    builder.Configuration[CConfigAG.JWT_SECRET]))
         };
     });
-    //.AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
+//.AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
 
 
 var app = builder.Build();
@@ -107,8 +139,7 @@ var app = builder.Build();
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
-
+//app.UseMiddleware<JwtMiddleware>();
 app.MapControllers();
 
 app.Run();
-

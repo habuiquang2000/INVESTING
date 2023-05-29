@@ -40,5 +40,3 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
-
-ProductCache.ProductList = ProductService.ReadMany();

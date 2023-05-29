@@ -1,36 +1,31 @@
 using DataService.Services;
 using BaseLib.Dtos.Product;
-using BaseLib.Models;
 using Microsoft.AspNetCore.Mvc;
+using BaseLib.Controllers;
+using BaseLib.Dtos;
+using Newtonsoft.Json;
 
 namespace DataService.Controllers;
 
 [ApiController]
 [Route("api/v1/[controller]/[action]")]
-public class ProductController : ControllerBase
+public class ProductController : ApiBaseController
 {
-    private readonly ILogger<ProductController> _logger;
-
-    public ProductController(ILogger<ProductController> logger)
-    {
-        _logger = logger;
-    }
+    public ProductController() { }
 
     [HttpGet]
-    public ActionResult<IEnumerable<ProductModel>?> GList(
+    public async Task<IActionResult> GList(
         string? search
     )
     {
-        _logger.LogDebug("GList");
-        List<ProductModel>? products = ProductService.ReadMany(search ?? "");
-
-        return products;
+        ERequest responseResult = await ProductService.ReadMany(search ?? "");
+        return Content(JsonConvert.SerializeObject(responseResult));
     }
 
     [HttpPost]
-    public async Task<ActionResult> PCreate([FromBody] PrductCreateDto product)
+    public async Task<IActionResult> PCreate([FromBody] PrductCreateDto product)
     {
-        ProductModel newProduct = await ProductService.CreateOne(product);
-        return Ok(newProduct);
+        ERequest responseResult = await ProductService.CreateOne(product);
+        return Content(JsonConvert.SerializeObject(responseResult));
     }
 }

@@ -1,88 +1,100 @@
 ﻿using BaseLib.Controllers;
-using Gateway.Helpers;
+using BaseLib.Dtos;
+using BaseLib.Dtos.User;
+using Gateway.BLL;
 using Gateway.Interfaces;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
 
 namespace Gateway.Controllers;
 
 [ApiController]
 [Route("api/v1/[controller]")]
-public class UserController : ControllerBase
+public class UserController : ApiBaseController
 {
-    private readonly IConfiguration _configuration;
-    //private readonly IGatewayHandler _handler;
+    private readonly IUserHandler _httpClientHandler;
 
     public UserController(
-        IConfiguration configuration
-        //, IGatewayHandler handler
+        IUserHandler httpClientHandler
     )
     {
-        _configuration = configuration;
-        //_handler = handler;
+        _httpClientHandler = httpClientHandler;
+    }
+
+    [HttpPost("Register")]
+    public async Task<IActionResult> PRegister(
+        [FromBody] UserRegisterDto? register
+    )
+    {
+        try
+        {
+            EResponse responseResult = await _httpClientHandler.Api_RegisterUserAsync(register);
+
+            return Content(JsonConvert.SerializeObject(responseResult));
+        }
+        catch (Exception ex)
+        {
+            return CreateJsonResponse(new EResponse()
+            {
+                Code = (long)CConfigAG.CODE_ERROR.GATEWAY,
+                Message = ex.Message,
+                Data = EResponse.RESPONSE_DATA_NULL
+            });
+        }
     }
 
     [HttpPost("Login")]
     //[ValidateAntiForgeryToken]
-    //public Task<IActionResult> PLogin([FromBody] LoginDto login)
-    public IActionResult PLogin()
+    public async Task<IActionResult> PLogin(
+        [FromBody] UserLoginDto? login
+    )
     {
-        //UserService.Login(login);
-
-        var token = TokenHelper.GenerateToken(
-            _configuration,
-            "",
-            ""
-        );
-
-        return Ok(new
+        try
         {
-            Token = token,
-            ValidTo = TokenHelper.GetValidTo(token)
-        });
+            EResponse responseResult = await _httpClientHandler
+                .Api_LoginUserAsync(login);
+
+            return Content(JsonConvert.SerializeObject(responseResult));
+        }
+        catch (Exception ex)
+        {
+            return CreateJsonResponse(new EResponse()
+            {
+                Code = (long)CConfigAG.CODE_ERROR.GATEWAY,
+                Message = ex.Message,
+                Data = EResponse.RESPONSE_DATA_NULL
+            });
+        }
     }
-
-    //[HttpPost("Register")]
-    //public IEnumerable<int> PRegister()
-    //{
-
-    //}
-
 
     [HttpGet("CheckLogin")]
     [Authorize]
     //[Authorize(Roles = SecurityRoles.Admin)]
-    public ActionResult<int> GCheckLogin()
+    public async Task<IActionResult> GCheckLogin()
     {
-        return Ok(new
+        //string token = Request
+        //    .Headers[HeaderNames.Authorization]
+        //    .ToString()
+        //    .Replace("Bearer ", "");
+        string? accessToken = await HttpContext
+            .GetTokenAsync("access_token");
+        try
         {
-            Message = "Chưa đăng nhập"
-        });
+            EResponse responseResult = await _httpClientHandler
+                .Api_CheckLoginUserAsync(accessToken);
+
+            return Content(JsonConvert.SerializeObject(responseResult));
+        }
+        catch (Exception ex)
+        {
+            return CreateJsonResponse(new EResponse()
+            {
+                Code = (long)CConfigAG.CODE_ERROR.GATEWAY,
+                Message = ex.Message,
+                Data = EResponse.RESPONSE_DATA_NULL
+            });
+        }
     }
-    //    [HttpPost]
-    //    public async Task<IActionResult> Register([FromBody] UserRegisterDto dto)
-    //    {
-    //        var existUsername = await _userManager.FindByNameAsync(dto.UserName);
-
-    //        if (existUsername != null) return new BadRequestObjectResult($"Username {dto.UserName} has already been taken");
-
-    //        var appUser = UserHelper.ToApplicationUser(dto);
-
-    //        var result1 = await _userManager.CreateAsync(appUser, dto.Password);
-
-    //        if (!result1.Succeeded) return new BadRequestObjectResult(result1.Errors);
-
-    //        List<string> roles = new();
-
-    //        if (dto.IsAdmin) roles.AddRange(SecurityRoles.Roles.ToList());
-    //        else roles.Add("User");
-
-    //        var result2 = await _userManager.AddToRolesAsync(appUser, roles);
-
-    //        if (!result2.Succeeded) return new BadRequestObjectResult(result2.Errors);
-
-    //        var response = await _userManager.FindByNameAsync(dto.UserName);
-
-    //        return Ok(response);
-    //    }
 }

@@ -2,41 +2,38 @@ using BaseLib.Dtos;
 using BaseLib.Dtos.Product;
 using Gateway.BLL;
 using Gateway.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 
 namespace BaseLib.Controllers;
 
-//[Authorize]
+[Authorize]
 [ApiController]
 [Route("api/v1/[controller]")]
 //[RequiredScope(RequiredScopesConfigurationKey = "AzureAd:Scopes")]
 public class ProductController : ApiBaseController
 {
-    private readonly ILogger<ProductController> _logger;
-    private readonly IGatewayHandler _httpClientHandler;
+    private readonly IProductHandler _httpClientHandler;
 
     public ProductController(
-        ILogger<ProductController> logger,
-        IGatewayHandler handler
+        IProductHandler httpClientHandler
     )
     {
-        _logger = logger;
-        _httpClientHandler = handler;
+        _httpClientHandler = httpClientHandler;
     }
 
     [HttpGet]
-    //[HttpGet("List/{search=non}")]
+    //[HttpGet("List/{search=non}")] // Get book by search
+    //[HttpGet("List/{id}")] // Get book details
     [Route("List")]
-    public IActionResult GList(
+    public async Task<IActionResult> GList(
         string? search
     )
     {
-        _logger.LogInformation("Get Product List");
-
         try
         {
-            EResponseResult responseResult = _httpClientHandler.Api_GetListProduct(new ()
+            EResponse responseResult = await _httpClientHandler.Api_GetListProductAsync(new ()
             {
                 ["search"] = search ?? "",
             });
@@ -45,32 +42,31 @@ public class ProductController : ApiBaseController
         }
         catch (Exception ex)
         {
-            return CreateJsonResponse(new EResponseResult()
+            return CreateJsonResponse(new EResponse()
             {
                 Code = (long)CConfigAG.CODE_ERROR.GATEWAY,
                 Message = ex.Message,
-                Data = null
+                Data = EResponse.RESPONSE_DATA_NULL
             });
         }
     }
 
     [HttpPost("Create")]
-    public IActionResult PCreate([FromBody] PrductCreateDto product)
+    public async Task<IActionResult> PCreate([FromBody] PrductCreateDto product)
     {
         try
         {
-            EResponseResult responseResult = _httpClientHandler.Api_CreateOneProduct(product);
+            EResponse responseResult = await _httpClientHandler.Api_CreateOneProductAsync(product);
 
             return Content(JsonConvert.SerializeObject(responseResult));
         }
         catch (Exception ex)
         {
-            //return null
-            return CreateJsonResponse(new EResponseResult()
+            return CreateJsonResponse(new EResponse()
             {
                 Code = (long)CConfigAG.CODE_ERROR.GATEWAY,
                 Message = ex.Message,
-                Data = null
+                Data = EResponse.RESPONSE_DATA_NULL
             });
         }
     }

@@ -1,76 +1,133 @@
-﻿using BaseLib.Dtos.User;
+﻿using BaseLib.Dtos;
+using BaseLib.Dtos.User;
 using BaseLib.Models;
 using DataService.ExecuteQueries;
 using DataService.Utils;
 using System.Data;
-using static BaseLib.Enums.UserEnum;
 
-namespace DataService.Services
+namespace DataService.Services;
+
+public class UserService
 {
-    public class UserService : BaseService
+    static readonly Dictionary<string, string> userMapper = new()
     {
-        #region C
-        public static UserModel? Register(UserRegisterDto user)
+        ["Id"] = "_id",
+        ["Username"] = "username",
+    };
+    #region C
+    public static async Task<ERequest> Register(UserRegisterDto user)
+    {
+        try
         {
-            try
+            UserModel newUser = new()
             {
-                UserModel newUser = new()
-                {
-                    Id = Uuid.GenerateWithDateTime,
-                    Username = user.Username,
-                    Password = Encrypt.GenSaltMD5(user.Password ?? ""),
-                    AuthPass = user.AuthPass,
-                };
-                UserQuery.InsertOne(newUser);
-                return new()
-                {
-                    Id = Uuid.GenerateWithDateTime,
-                    Username = user.Username,
-                };
-            }
-            catch
-            {
-                return null;
-            }
-        }
-        #endregion
+                Id = Uuid.GenerateWithDateTime,
+                Username = user.Username,
+                Password = Encrypt.GenSaltMD5(user.Password ?? ""),
+                AuthPass = user.AuthPass,
+            };
 
-        #region R
-        public static LOGIN_STATE CheckUsername(
-            UserLoginDto login
-        )
+            await UserQuery.InsertOne(newUser);
+
+            return new ERequest()
+            {
+                Code = (long)ERequest.CODE.SUCCESS,
+                Message = ERequest.CODE.SUCCESS.ToString(),
+                Data = new
+                {
+                    newUser.Id,
+                    newUser.Username,
+
+                },
+            };
+        }
+        catch (Exception ex)
         {
-            string status = UserQuery.SelectStatusByUsername(login);
-            LOGIN_STATE loginStatus = (LOGIN_STATE)Enum.Parse(
-                typeof(LOGIN_STATE),
+            return new ERequest()
+            {
+                Code = ((long)ERequest.CODE.ERROR),
+                Message = ex.Message,
+                Data = ERequest.RESPONSE_DATA_NULL
+            };
+        }
+    }
+    #endregion
+
+    #region R
+    public static async Task<ERequest> CheckUsername(
+        UserLoginDto login
+    )
+    {
+        try
+        {
+            string status = await UserQuery.SelectStatusByUsername(login);
+            ERequest.LOGIN_CODE loginStatus = (ERequest.LOGIN_CODE)Enum.Parse(
+                typeof(ERequest.LOGIN_CODE),
                 status
             );
-            return loginStatus;
+
+            return new ERequest()
+            {
+                Code = (long)ERequest.CODE.SUCCESS,
+                Message = ERequest.CODE.SUCCESS.ToString(),
+                Data = loginStatus,
+            };
         }
-        public static UserModel? CheckLogin(UserLoginDto login)
+        catch (Exception ex)
         {
-            DataTable userLogin = UserQuery.SelectByUsernameAndPassword(new UserLoginDto()
+            return new ERequest()
             {
-                Username = login.Username,
-                Password = Encrypt.GenSaltMD5(login.Password ?? "")
-            });
-
-            foreach (DataRow dr in userLogin.Rows)
-            {
-                return new UserModel()
-                {
-                    Id = $"{dr["_id"]}",
-                    Username = $"{dr["username"]}",
-                };
-            }
-            return null;
+                Code = ((long)ERequest.CODE.ERROR),
+                Message = ex.Message,
+                Data = ERequest.RESPONSE_DATA_NULL
+            };
         }
-        #endregion
-
-        #region U
-        #endregion
-
-        #region D
-        #endregion
     }
+    public static async Task<ERequest> CheckLogin(UserLoginDto login)
+    {
+        try
+        {
+            DataTable userDt = await UserQuery
+                .SelectByUsernameAndPassword(
+                new UserLoginDto()
+                {
+                    Username = login.Username,
+                    Password = Encrypt.GenSaltMD5(login.Password ?? "")
+                });
+            List<UserModel>? userLst = userDt.ToList<UserModel>(userMapper);
+
+            if(userLst == null || userLst.Count == 0)
+            {
+                throw new BadHttpRequestException(EResponse.RESPONSE_CODE.ACCESS_DENIED.ToString());
+            }
+
+            UserModel user = userLst.First();
+
+            return new ERequest()
+            {
+                Code = (long)ERequest.CODE.SUCCESS,
+                Message = ERequest.CODE.SUCCESS.ToString(),
+                Data = new {
+                    user.Id,
+                    user.Username,
+                },
+            };
+        }
+        catch (Exception ex)
+        {
+            return new ERequest()
+            {
+                Code = ((long)ERequest.CODE.ERROR),
+                Message = ex.Message,
+                Data = ERequest.RESPONSE_DATA_NULL
+            };
+        }
+    }
+    #endregion
+
+    #region U
+    #endregion
+
+    #region D
+    #endregion
 }

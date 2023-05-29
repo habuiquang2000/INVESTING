@@ -2,21 +2,8 @@
 
 public class Uuid
 {
-    public static string Generate
-    {
-        get
-        {
-            Guid guid = Guid.NewGuid();
-            string uuid = guid.ToString();
-            return uuid;
-        }
-    }
-    public static string GenerateWithDateTime
-    {
-        get
-        {
-            DateTime dateTime = new();
-            return $"{dateTime.GetHashCode()}{Generate}";
-        }
-    }
+    public static string Generate =>
+        Guid.NewGuid().ToString();
+    public static string GenerateWithDateTime =>
+        $"{(new DateTime()).GetHashCode()}{Generate}";
 }
